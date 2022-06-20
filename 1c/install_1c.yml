@@ -1,4 +1,4 @@
-- hosts: w_ws_tmp
+- hosts: w_ws
   connection: local
   tasks:
 
