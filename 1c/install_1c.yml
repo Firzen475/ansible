@@ -48,7 +48,7 @@
         script: |
           if ("{{ item.Version }}" -ne "{{ version_1c.output[0] }}") {dir C:\Users |
           select name |
-          foreach-object -process { $tmp=$_.Name; if (Test-Path -Path "C:\Users\$tmp\AppData\Local\1C" ) {Remove-Item "C:\Users\$tmp\AppData\Local\1C" -Recurse}; if (Test-Path -Path "C:\Users\$tmp\AppData\R>
+          foreach-object -process { $tmp=$_.Name; if (Test-Path -Path "C:\Users\$tmp\AppData\Local\1C" ) {Remove-Item "C:\Users\$tmp\AppData\Local\1C" -Recurse}; if (Test-Path -Path "C:\Users\$tmp\AppData\Roaming\1C" ) {Remove-Item "C:\Users\$tmp\AppData\Roaming\1C" -Recurse}; } }
       ignore_errors: True
       loop: "{{ installed_1c_v.output }}"
       when:
@@ -73,44 +73,6 @@
         - copy_1c_ini.failed != true
         - version_1c.output[0] is defined
 
-    - name: Остановка запущенных процессов
-      ansible.windows.win_powershell:
-        script: |
-          if ("{{ item.Version }}" -ne "{{ version_1c.output[0] }}") {taskkill /IM "1cv8*" /F }
-      ignore_errors: True
-      loop: "{{ installed_1c_v.output }}"
-      when:
-        - copy_1c_ini.failed != true
-
-    - name: Очистка кэша
-      ansible.windows.win_powershell:
-        script: |
-          if ("{{ item.Version }}" -ne "{{ version_1c.output[0] }}") {dir C:\Users |
-          select name |
-          foreach-object -process { $tmp=$_.Name; if (Test-Path -Path "C:\Users\$tmp\AppData\Local\1C" ) {Remove-Item "C:\Users\$tmp\AppData\Local\1C" -Recurse}; if (Test-Path -Path "C:\Users\$tmp\AppData\R>
-      ignore_errors: True
-      loop: "{{ installed_1c_v.output }}"
-      when:
-        - copy_1c_ini.failed != true
-
-    - name: Удаление других версий
-      ansible.windows.win_powershell:
-        script: |
-          if ("{{ item.Version }}" -ne "{{ version_1c.output[0] }}") { Get-WmiObject -Class Win32_Product | where vendor -eq 1С-Софт | where version -eq "{{ item.Version }}" | Remove-WmiObject }
-      ignore_errors: True
-      loop: "{{ installed_1c_v.output }}"
-      when:
-        - copy_1c_ini.failed != true
-
-    - name: Повторная проверка установленной версии 1с
-      ansible.windows.win_powershell:
-        script: |
-          Get-WmiObject -Class Win32_Product | where vendor -eq 1С-Софт | where version -eq "{{ version_1c.output[0] }}" | select Version
-      ignore_errors: True
-      register: installed_1c_v_retry
-      when:
-        - copy_1c_ini.failed != true
-        - version_1c.output[0] is defined
     - name: Копирование дистрибутива 1с
       ansible.windows.win_copy:
         src: \\server\path\to\1c_source\
@@ -128,7 +90,7 @@
     - name: Установка актуальной 1с
       ansible.windows.win_powershell:
         script: |
-          Start-Process "msiexec.exe" -ArgumentList '/i "C:\Temp\1c_source\1CEnterprise 8.msi" /qn TRANSFORMS=adminstallrelogon.mst;1049.mst DESIGNERALLCLIENTS=1 THICKCLIENT=1 THINCLIENTFILE=1 THINCLIENT=1 >
+          Start-Process "msiexec.exe" -ArgumentList '/i "C:\Temp\1c_source\1CEnterprise 8.msi" /qn TRANSFORMS=adminstallrelogon.mst;1049.mst DESIGNERALLCLIENTS=1 THICKCLIENT=1 THINCLIENTFILE=1 THINCLIENT=1  WEBSERVEREXT=0 SERVER=0 CONFREPOSSERVER=0 CONVERTER77=0 SERVERCLIENT=0 LANGUAGES=RU' -Wait
       ignore_errors: True
       when:
         - installed_1c_v_retry.output[0].Version is not defined
