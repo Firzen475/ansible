@@ -1,6 +1,6 @@
 # ansible
 
-## Общее
+### Общее
 
  - Загрузка проекта
 
@@ -22,7 +22,7 @@
 
 4) На всех WS включен WinRM [link](https://winitpro.ru/index.php/2012/01/31/kak-aktivirovat-windows-remote-management-s-pomoshhyu-gruppovoj-politiki/)
 
-I. Групповая установка 1С
+### I. Групповая установка 1С
 
 `cd ./1c`
 
