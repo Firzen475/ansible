@@ -1,0 +1,14 @@
+[w_ws]
+ws1
+
+[w_ws:vars]
+ansible_user = ansible@EXAMPLE.LOCAL
+ansible_password = Pa$$word
+ansible_connection = winrm
+ansible_port = 5985
+ansible_winrm_transport = kerberos
+ansible_winrm_server_cert_validation = ignore
+ansible_become = false
+ansible_become_user = ansible@EXAMPLE.LOCAL
+ansible_become_password = Pa$$word
+
