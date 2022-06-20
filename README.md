@@ -58,3 +58,6 @@ ansible.windows.win_copy не поддерживает переменные в s
 
 
 
+
+
+
