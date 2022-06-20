@@ -1,0 +1,8 @@
+[01.[Отображаемое имя]]
+Connect=Srvr="[IP cthdthf 1C]";Ref="[Имя базы на сервере]";
+Folder=/
+External=0
+ClientConnectionSpeed=Normal
+App=Auto
+WA=1
+Version=8.3
