@@ -47,6 +47,7 @@
 `│       └── Utilities`  
 `└── winrar.exe`  
 - Установка путей хранения дистрибутивов  
+
 ansible.windows.win_copy не поддерживает переменные в src и dest, поэтому пути прописываются прямо в playbook
 `cd ./install_soft/`    
 `sed -i 's/\[path_to_soft\]/\\\\server\\share$\\some_shsre/' ./playbook.yml`    
