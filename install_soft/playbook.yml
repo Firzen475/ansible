@@ -1,0 +1,383 @@
+- hosts: w_ws
+  connection: local
+  tasks:
+
+####### Chrome #######
+
+    - name: Проверка установки Chrome
+      ansible.windows.win_powershell:
+        script: |
+          if (Test-Path -Path "$Env:Programfiles\Google\Chrome\Application\chrome.exe") {echo true} else {echo false}
+      ignore_errors: True
+      register: is_chrome_install
+
+    - name: Загрузка Chrome
+      ansible.windows.win_copy:
+        src: [path_to_soft]\Soft\ChromeSetup.exe
+        dest: C:\Windows\Temp\
+        remote_src: yes
+      become_method: runas
+      become_flags: logon_type=new_credentials logon_flags=netcredentials_only
+      vars:
+        ansible_become: yes
+      register: copy_ChromeSetup
+      ignore_errors: True
+      when:
+        - is_chrome_install.output[0] == "false"
+
+    - name: Установка Chrome
+      ansible.windows.win_powershell:
+        script: |
+          C:\Windows\Temp\ChromeSetup.exe /silent /install
+      ignore_errors: True
+      when:
+        - is_chrome_install.output[0] == "false"
+        - copy_ChromeSetup.failed == false
+
+    - name: Удаление ChromeSetup
+      ansible.windows.win_file:
+        path: C:\Windows\Temp\ChromeSetup.exe
+        state: absent
+      ignore_errors: True
+      when:
+        - copy_ChromeSetup.failed == false
+
+####### WinRAR #######
+
+    - name: Проверка установки WinRAR
+      ansible.windows.win_powershell:
+        script: |
+          if (Test-Path -Path "$Env:Programfiles\WinRAR\Rar.exe") {echo true} else {echo false}
+      ignore_errors: True
+      register: is_rar_install
+
+    - name: Загрузка WinRAR
+      ansible.windows.win_copy:
+        src: [path_to_soft]\Soft\winrar.exe
+        dest: C:\Windows\Temp\
+        remote_src: yes
+      become_method: runas
+      become_flags: logon_type=new_credentials logon_flags=netcredentials_only
+      vars:
+        ansible_become: yes
+      register: copy_rar
+      ignore_errors: True
+      when:
+        - is_rar_install.output[0] == "false"
+
+    - name: Установка WinRAR
+      ansible.windows.win_powershell:
+        script: |
+          C:\Windows\Temp\winrar.exe /S
+      ignore_errors: True
+      when:
+        - is_rar_install.output[0] == "false"
+        - copy_rar.failed == false
+
+    - name: Удаление WinRAR_Setup
+      ansible.windows.win_file:
+        path: C:\Windows\Temp\winrar.exe
+        state: absent
+      ignore_errors: True
+      when:
+        - copy_rar.failed == false
+
+####### office #######
+
+    - name: Расположение офиса
+      ansible.windows.win_powershell:
+        script: |
+          if (Test-Path -Path "$Env:Programfiles(x86)\Microsoft Office\root\Licenses16") {"$Env:Programfiles(x86)\Microsoft Office\"} else {if (Test-Path -Path "$Env:Programfiles\Microsoft Office\root\Licenses16"){"$Env:Programfiles\Microsoft Office\"}}
+      ignore_errors: True
+      register: office_path
+
+    - name: Наличие скрипта ospp
+      ansible.windows.win_powershell:
+        script: |
+          if (Test-Path -Path "{{ office_path.output[0] }}\Office16\OSPP.VBS" -PathType Leaf) {"{{ office_path.output[0] }}Office16\OSPP.VBS"}
+      ignore_errors: True
+      register: ospp_exist
+      when:
+        - office_path.output[0] is defined
+
+    - name: Удаление Office ClickToRun
+      ansible.windows.win_powershell:
+        script: |
+          Get-WmiObject -Class Win32_Product | where vendor -match Microsoft | where Name -match Click-to-Run | Remove-WmiObject
+      ignore_errors: True
+      when:
+        - office_path.output[0] is not defined or ospp_exist.output[0] is not defined
+
+    - name: Офис не найден. очистка Program Files
+      ansible.windows.win_file:
+        path: C:\Program Files\Microsoft Office\
+        state: absent
+      ignore_errors: True
+      when:
+        - office_path.output[0] is not defined or ospp_exist.output[0] is not defined
+
+    - name: Офис не найден. очистка Program Files (x86)
+      ansible.windows.win_file:
+        path: C:\Program Files (x86)\Microsoft Office\
+        state: absent
+      ignore_errors: True
+      when:
+        - office_path.output[0] is not defined or ospp_exist.output[0] is not  defined
+
+    - name: Копирование дистрибутива office
+      ansible.windows.win_copy:
+        src: [path_to_soft]\Soft\Microsoft.Office.2016\
+        dest: C:\Windows\Temp\Microsoft.Office.2016\
+        remote_src: yes
+      become_method: runas
+      become_flags: logon_type=new_credentials logon_flags=netcredentials_only
+      vars:
+        ansible_become: yes
+      register: copy_1c_dst
+      ignore_errors: True
+      when:
+        - office_path.output[0] is not defined or ospp_exist.output[0] is not defined
+
+    - name: Установка office
+      ansible.windows.win_powershell:
+        script: |
+          C:\Windows\Temp\Microsoft.Office.2016\Office\helper.exe /S /INSTALL /2016 /PROX64 /WORD /EXCEL /POWERPOINT /LANG=RU-RU
+      ignore_errors: True
+      when:
+        - office_path.output[0] is not defined or ospp_exist.output[0] is not defined
+
+    - name: Очистка Temp
+      ansible.windows.win_file:
+        path: C:\Windows\Temp\Microsoft.Office.2016\
+        state: absent
+      ignore_errors: True
+      when:
+        - office_path.output[0] is not defined or ospp_exist.output[0] is not defined
+
+####### 1c #######
+
+    - name: Копирование 1с Setup.ini для проверки версии
+      ansible.windows.win_copy:
+        src: [path_to_soft]\Soft\1c_source\Setup.ini
+        dest: C:\Windows\Temp\
+        remote_src: yes
+      become_method: runas
+      become_flags: logon_type=new_credentials logon_flags=netcredentials_only
+      vars:
+        ansible_become: yes
+      register: copy_1c_ini
+      ignore_errors: True
+
+    - name: Получить версию инсталлятора
+      ansible.windows.win_powershell:
+        script: |
+          Get-Content "C:\Windows\Temp\Setup.ini" |
+          foreach-object -begin {$h=@{}} -End {echo $h["Startup"]["ProductVersion"]; } -process { if ($_ -match "^\[(.+)\]$") {$section=$matches[1]; $h[$matches[1]]=@{}} if ($_ -match "(.+)=(.+)"){ $name,$value = $matches[1..2]; $h[$section][$name] = $value; }}
+      ignore_errors: True
+      register: version_1c
+      when:
+        - copy_1c_ini.failed != true
+
+    - name: Проверить установленную версию 1с
+      ansible.windows.win_powershell:
+        script: |
+          Get-WmiObject -Class Win32_Product | where vendor -eq 1С-Софт | select Version
+      ignore_errors: True
+      register: installed_1c_v
+      when:
+        - copy_1c_ini.failed != true
+
+    - name: Остановка запущенных процессов
+      ansible.windows.win_powershell:
+        script: |
+          if ("{{ item.Version }}" -ne "{{ version_1c.output[0] }}") {taskkill /IM "1cv8*" /F }
+      ignore_errors: True
+      loop: "{{ installed_1c_v.output }}"
+      when:
+        - copy_1c_ini.failed != true
+
+    - name: Очистка кэша
+      ansible.windows.win_powershell:
+        script: |
+          if ("{{ item.Version }}" -ne "{{ version_1c.output[0] }}") {dir C:\Users |
+          select name |
+          foreach-object -process { $tmp=$_.Name; if (Test-Path -Path "C:\Users\$tmp\AppData\Local\1C" ) {Remove-Item "C:\Users\$tmp\AppData\Local\1C" -Recurse}; if (Test-Path -Path "C:\Users\$tmp\AppData\Roaming\1C" ) {Remove-Item "C:\Users\$tmp\AppData\Roaming\1C" -Recurse}; } }
+      ignore_errors: True
+      loop: "{{ installed_1c_v.output }}"
+      when:
+        - copy_1c_ini.failed != true
+
+    - name: Удаление других версий
+      ansible.windows.win_powershell:
+        script: |
+          if ("{{ item.Version }}" -ne "{{ version_1c.output[0] }}") { Get-WmiObject -Class Win32_Product | where vendor -eq 1С-Софт | where version -eq "{{ item.Version }}" | Remove-WmiObject }
+      ignore_errors: True
+      loop: "{{ installed_1c_v.output }}"
+      when:
+        - copy_1c_ini.failed != true
+
+    - name: Повторная проверка установленной версии 1с
+      ansible.windows.win_powershell:
+        script: |
+          Get-WmiObject -Class Win32_Product | where vendor -eq 1С-Софт | where version -eq "{{ version_1c.output[0] }}" | select Version
+      ignore_errors: True
+      register: installed_1c_v_retry
+      when:
+        - copy_1c_ini.failed != true
+
+    - name: Копирование дистрибутива 1с
+      ansible.windows.win_copy:
+        src: [path_to_soft]\Soft\1c_source\
+        dest: C:\Windows\Temp\1c_source\
+        remote_src: yes
+      become_method: runas
+      become_flags: logon_type=new_credentials logon_flags=netcredentials_only
+      vars:
+        ansible_become: yes
+      register: copy_1c_dst
+      ignore_errors: True
+      when:
+        - installed_1c_v_retry.output[0].Version is not defined
+
+    - name: Установка актуальной 1с
+      ansible.windows.win_powershell:
+        script: |
+          Start-Process "msiexec.exe" -ArgumentList '/i "C:\Windows\Temp\1c_source\1CEnterprise 8.msi" /qn TRANSFORMS=adminstallrelogon.mst;1049.mst DESIGNERALLCLIENTS=1 THICKCLIENT=1 THINCLIENTFILE=1 THINCLIENT=1 WEBSERVEREXT=0 SERVER=0 CONFREPOSSERVER=0 CONVERTER77=0 SERVERCLIENT=0 LANGUAGES=RU' -Wait
+      ignore_errors: True
+      when:
+        - installed_1c_v_retry.output[0].Version is not defined
+
+    - name: Копирование настроек баз
+      ansible.windows.win_copy:
+        src: [path_to_1cestart]\1cestart.cfg
+        dest: C:\ProgramData\1C\1CEStart\1cestart.cfg
+        remote_src: yes
+      become_method: runas
+      become_flags: logon_type=new_credentials logon_flags=netcredentials_only
+      vars:
+        ansible_become: yes
+      ignore_errors: True
+      when:
+        - installed_1c_v_retry.output[0].Version is not defined
+
+    - name: Удаление дистрибутива
+      ansible.windows.win_file:
+        path: C:\Windows\Temp\1c_source
+        state: absent
+      ignore_errors: True
+
+####### KOMPAS #######
+
+    - name: Проверка установки Kompas
+      ansible.windows.win_powershell:
+        script: |
+           Get-WmiObject -Class Win32_Product | where Name -eq "КОМПАС-3D v20 x64" | select Name
+      ignore_errors: True
+      register: is_kompas_install
+
+    - name: Загрузка Kompas
+      ansible.windows.win_copy:
+        src: [path_to_soft]\Soft\KOMPAS-3D\1. KOMPAS-3D V20 x64\
+        dest: C:\Windows\Temp\KOMPAS-3D\
+        remote_src: yes
+      become_method: runas
+      become_flags: logon_type=new_credentials logon_flags=netcredentials_only
+      vars:
+        ansible_become: yes
+      register: copy_ChromeSetup
+      ignore_errors: True
+      when:
+        - is_kompas_install.output[0].Name is not defined
+
+    - name: Загрузка Kompas Строительная конфигурация
+      ansible.windows.win_copy:
+        src: [path_to_soft]\Soft\KOMPAS-3D\2. KOMPAS-3D V20 AEC x64\
+        dest: C:\Windows\Temp\KOMPAS-3D_AEC\
+        remote_src: yes
+      become_method: runas
+      become_flags: logon_type=new_credentials logon_flags=netcredentials_only
+      vars:
+        ansible_become: yes
+      register: copy_ChromeSetup
+      ignore_errors: True
+      when:
+        - is_kompas_install.output[0].Name is not defined
+
+    - name: Загрузка Kompas UPDATES
+      ansible.windows.win_copy:
+        src: [path_to_soft]\Soft\KOMPAS-3D\UPDATES\KOMPAS-3D V20.0.1 x64\
+        dest: C:\Windows\Temp\KOMPAS-3D_UPDATES\
+        remote_src: yes
+      become_method: runas
+      become_flags: logon_type=new_credentials logon_flags=netcredentials_only
+      vars:
+        ansible_become: yes
+      register: copy_ChromeSetup
+      ignore_errors: True
+      when:
+        - is_kompas_install.output[0].Name is not defined
+
+    - name: Установка Kompas
+      ansible.windows.win_powershell:
+        script: |
+          Start-Process "msiexec.exe" -ArgumentList '/i "C:\Windows\Temp\KOMPAS-3D\KOMPAS-3D_v20_x64.msi" /qn /norestart' -Wait
+      ignore_errors: True
+      when:
+        - is_kompas_install.output[0].Name is not defined
+
+    - name: Установка Kompas AEC
+      ansible.windows.win_powershell:
+        script: |
+          Start-Process "msiexec.exe" -ArgumentList '/i "C:\Windows\Temp\KOMPAS-3D_AEC\KOMPAS-3D_V20.0_AEC_x64.msi" /qn /norestart' -Wait
+      ignore_errors: True
+      when:
+        - is_kompas_install.output[0].Name is not defined
+
+    - name: Установка Kompas UPDATES
+      ansible.windows.win_powershell:
+        script: |
+          Start-Process "msiexec.exe" -ArgumentList '/p "C:\Windows\Temp\KOMPAS-3D_UPDATES\KOMPAS-3D_v20.0.1_x64.msp" /qn /norestart' -Wait
+      ignore_errors: True
+      when:
+        - is_kompas_install.output[0].Name is not defined
+
+    - name: Активация Kompas
+      ansible.windows.win_copy:
+        src: C:\Windows\Temp\KOMPAS-3D_UPDATES\noHASP x64 V20.0.1\
+        dest: C:\Program Files\ASCON\KOMPAS-3D v20\
+        remote_src: yes
+      become_method: runas
+      become_flags: logon_type=new_credentials logon_flags=netcredentials_only
+      vars:
+        ansible_become: yes
+      register: copy_ChromeSetup
+      ignore_errors: True
+      when:
+        - is_kompas_install.output[0].Name is not defined
+
+    - name: Удаление установщика Kompas
+      ansible.windows.win_file:
+        path: C:\Windows\Temp\KOMPAS-3D
+        state: absent
+      ignore_errors: True
+      when:
+        - is_kompas_install.output[0].Name is not defined
+
+    - name: Удаление установщика Kompas AEC
+      ansible.windows.win_file:
+        path: C:\Windows\Temp\KOMPAS-3D_AEC
+        state: absent
+      ignore_errors: True
+      when:
+        - is_kompas_install.output[0].Name is not defined
+
+    - name: Удаление установщика Kompas UPDATES
+      ansible.windows.win_file:
+        path: C:\Windows\Temp\KOMPAS-3D_UPDATES
+        state: absent
+      ignore_errors: True
+      when:
+        - is_kompas_install.output[0].Name is not defined
+
+
+
